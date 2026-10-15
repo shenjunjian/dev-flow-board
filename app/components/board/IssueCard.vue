@@ -18,6 +18,9 @@ const showStatusIcon = computed(() => props.issue.column === 'dev' || props.issu
 // 时间线逐条渲染进 tooltip 的 #content 插槽：
 // text 属性渲染的是带 truncate（white-space:nowrap）的单行 span，\n 不会换行，
 // 且 content 主题自带 h-6，多行会被裁掉，所以这里用插槽 + 覆盖 ui.content。
+//
+// 深色气泡由 app/app.config.ts 在 tooltip 主题层统一配（全站生效，弹窗里的 tooltip 也一起变深），
+// 这里只留布局类；主题自带 h-6，靠 twMerge 用 h-auto 顶掉。
 </script>
 
 <template>
@@ -33,9 +36,9 @@ const showStatusIcon = computed(() => props.issue.column === 'dev' || props.issu
       :class="highlighted ? 'border-warning ring-2 ring-warning/40' : 'border-muted'"
       :data-card="`${issue.repoId}-${issue.number}`"
     >
-      <div class="flex items-start gap-1.5">
-        <span class="shrink-0 font-mono text-[11px] leading-5 text-dimmed">#{{ issue.number }}</span>
-        <span class="line-clamp-1 flex-1 font-medium text-highlighted">{{ issue.title }}</span>
+      <div class="flex items-start gap-2">
+        <span class="shrink-0 font-mono text-lg leading-6 font-bold tracking-tight text-primary">#{{ issue.number }}</span>
+        <span class="line-clamp-1 flex-1 text-sm leading-6 font-medium text-highlighted">{{ issue.title }}</span>
         <UBadge
           v-if="issue.importance === 'high'"
           color="error"

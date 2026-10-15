@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import type { BoardRepo } from '#shared/utils/board'
 import { REPO_COLORS, REFRESH_INTERVALS, isRefreshInterval, type RefreshInterval } from '#shared/utils/colors'
 
@@ -184,13 +185,53 @@ const issueCount = computed(() => {
   }
   return map
 })
+
+function countOf(row: RepoRow): number {
+  return row.repoId === null ? 0 : issueCount.value.get(row.repoId) ?? 0
+}
+
+// 表格列：全部用自定义 cell 插槽渲染编辑器；
+// 行对象来自 rows.value 本身（Vue 的响应式是代理不是克隆），
+// 所以 v-model 写 row.original.xxx 会直接落到 rows 上，保存逻辑无需改动。
+const columns = [
+  {
+    id: 'address',
+    header: '仓库地址',
+    meta: { class: { th: 'w-[26%] min-w-56', td: 'min-w-56' } },
+  },
+  {
+    id: 'sortOrder',
+    header: '排序',
+    meta: { class: { th: 'w-28', td: 'w-28' } },
+  },
+  {
+    id: 'color',
+    header: '颜色',
+    meta: { class: { th: 'w-36' } },
+  },
+  {
+    id: 'refresh',
+    header: '刷新间隔',
+    meta: { class: { th: 'w-32', td: 'w-32' } },
+  },
+  {
+    id: 'issues',
+    header: '任务数',
+    meta: { class: { th: 'w-16', td: 'w-16 tabular-nums' } },
+  },
+  {
+    id: 'actions',
+    header: '操作',
+    meta: { class: { th: 'w-40', td: 'w-40' } },
+  },
+] satisfies TableColumn<RepoRow>[]
 </script>
 
 <template>
   <UModal
     :open="open"
     title="管理仓库"
-    :ui="{ content: 'max-w-4xl' }"
+    :ui="{ content: 'max-w-5xl' }"
     @update:open="open = $event"
   >
     <template #body>
@@ -210,82 +251,99 @@ const issueCount = computed(() => {
           新增仓库
         </UButton>
 
-        <div
-          v-for="row in rows"
-          :key="row.rowId"
-          class="grid grid-cols-[minmax(0,1fr)_4.5rem_11rem_7rem_auto] items-center gap-2 rounded-lg border border-default bg-elevated/50 p-2.5"
+        <UTable
+          :data="rows"
+          :columns="columns"
+          :get-row-id="(row: RepoRow) => String(row.rowId)"
+          empty="还没有仓库，点「新增仓库」添加一个。"
+          :ui="{
+            th: 'px-3 py-2 text-xs',
+            td: 'px-3 py-2 align-middle',
+            root: 'max-h-[55vh] rounded-lg border border-default',
+          }"
         >
-          <!-- 地址 -->
-          <!-- 文案必须用短地址形态：长中文含 https:// 的文案会触发 vue-tsc 解析 bug，放大成 v-for 作用域崩塌 -->
-          <UInput
-            v-model="row.address"
-            :placeholder="'owner/repo'"
-            size="sm"
-            icon="i-lucide-git-branch"
-          />
-
-          <!-- 排序号 -->
-          <UInputNumber
-            v-model="row.sortOrder"
-            :min="1"
-            :step="1"
-            size="sm"
-          />
-
-          <!-- 色板：git-color.png 的 11 色，上排黑红绿蓝橙紫，下排灰黄浅绿浅蓝粉；选中态加圈 -->
-          <div class="flex flex-wrap items-center gap-1">
-            <button
-              v-for="color in REPO_COLORS"
-              :key="color"
-              type="button"
-              class="h-4.5 w-4.5 rounded-full border border-default transition-transform hover:scale-110"
-              :class="row.color === color ? 'ring-2 ring-primary ring-offset-2 ring-offset-elevated' : ''"
-              :style="{ backgroundColor: color }"
-              :aria-label="`颜色 ${color}`"
-              @click="row.color = color"
-            />
-          </div>
-
-          <!-- 刷新间隔 -->
-          <USelect
-            v-model="row.refreshIntervalMs"
-            :items="intervalOptions"
-            value-key="value"
-            size="sm"
-          />
-
-          <!-- 操作 -->
-          <div class="flex items-center gap-1">
-            <UTooltip v-if="row.repoId !== null" text="初始查询：整仓对账拉取全部 Issue">
-              <UButton
-                icon="i-lucide-cloud-download"
-                color="neutral"
-                variant="soft"
-                size="sm"
-                :loading="row.syncing"
-                :disabled="row.syncing"
-                @click="syncInitial(row)"
-              >
-                初始查询
-              </UButton>
-            </UTooltip>
-            <span
-              v-else
-              class="text-[10px] text-dimmed"
-            >先保存后再查询</span>
-            <UButton
-              icon="i-lucide-trash-2"
-              color="error"
-              variant="ghost"
+          <!-- 文案必须用短地址形态：长中文含 https:// 的文案会触发 vue-tsc 解析 bug，放大成插槽作用域崩塌 -->
+          <template #address-cell="{ row }">
+            <UInput
+              v-model="row.original.address"
+              :placeholder="'owner/repo'"
               size="sm"
-              @click="removeRow(row)"
+              icon="i-lucide-git-branch"
+              class="w-full"
             />
-          </div>
-        </div>
+          </template>
 
-        <p v-if="rows.length === 0" class="py-6 text-center text-sm text-muted">
-          还没有仓库，点「新增仓库」添加一个。
-        </p>
+          <template #sortOrder-cell="{ row }">
+            <UInputNumber
+              v-model="row.original.sortOrder"
+              :min="1"
+              :step="1"
+              size="sm"
+              class="w-full"
+            />
+          </template>
+
+          <!-- 色板：git-color.png 上排 6 色（黑红绿蓝橙紫）；选中态加圈 -->
+          <template #color-cell="{ row }">
+            <div class="flex flex-wrap items-center gap-1">
+              <button
+                v-for="color in REPO_COLORS"
+                :key="color"
+                type="button"
+                class="h-4.5 w-4.5 rounded-full border border-default transition-transform hover:scale-110"
+                :class="row.original.color === color ? 'ring-2 ring-primary ring-offset-2 ring-offset-elevated' : ''"
+                :style="{ backgroundColor: color }"
+                :aria-label="`颜色 ${color}`"
+                @click="row.original.color = color"
+              />
+            </div>
+          </template>
+
+          <template #refresh-cell="{ row }">
+            <USelect
+              v-model="row.original.refreshIntervalMs"
+              :items="intervalOptions"
+              value-key="value"
+              size="sm"
+              class="w-full"
+            />
+          </template>
+
+          <template #issues-cell="{ row }">
+            <span class="text-xs" :class="countOf(row.original) > 0 ? 'text-highlighted' : 'text-dimmed'">
+              {{ countOf(row.original) }}
+            </span>
+          </template>
+
+          <template #actions-cell="{ row }">
+            <div class="flex items-center gap-1">
+              <UTooltip v-if="row.original.repoId !== null" text="初始查询：整仓对账拉取全部 Issue">
+                <UButton
+                  icon="i-lucide-cloud-download"
+                  color="neutral"
+                  variant="soft"
+                  size="sm"
+                  :loading="row.original.syncing"
+                  :disabled="row.original.syncing"
+                  @click="syncInitial(row.original)"
+                >
+                  初始查询
+                </UButton>
+              </UTooltip>
+              <span
+                v-else
+                class="text-[10px] text-dimmed"
+              >先保存后再查询</span>
+              <UButton
+                icon="i-lucide-trash-2"
+                color="error"
+                variant="ghost"
+                size="sm"
+                @click="removeRow(row.original)"
+              />
+            </div>
+          </template>
+        </UTable>
 
         <div class="mt-1 flex items-center justify-between gap-2 border-t border-default pt-3">
           <span class="text-xs text-dimmed">

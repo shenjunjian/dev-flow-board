@@ -1,6 +1,6 @@
 /**
- * 仓库颜色色板，取自 git-color.png 的 11 个色块：
- * 上排黑红绿蓝橙紫，下排灰黄浅绿浅蓝粉。
+ * 仓库颜色色板，取自 git-color.png 上排的 6 个色块：黑红绿蓝橙紫。
+ * 下排的灰黄浅绿浅蓝粉太浅，作为仓库块的边框/底色对比不足，已去掉。
  */
 export const REPO_COLORS = [
   '#1e1e1e', // 黑
@@ -9,11 +9,6 @@ export const REPO_COLORS = [
   '#1971c2', // 蓝
   '#f08c00', // 橙
   '#4a47b1', // 紫
-  '#e5e5e5', // 灰
-  '#ffec99', // 黄
-  '#b2f2bb', // 浅绿
-  '#a5d8ff', // 浅蓝
-  '#ffc9c9', // 粉
 ] as const
 
 export type RepoColor = (typeof REPO_COLORS)[number]

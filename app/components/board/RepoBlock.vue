@@ -13,7 +13,7 @@ const sorted = computed(() => [...props.issues].sort((a, b) => {
   return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
 }))
 
-// 仓库色只从色板 11 色里来，直接拼 style（避免 Tailwind 动态类被清除）
+// 仓库色只从色板 6 色里来，直接拼 style（避免 Tailwind 动态类被清除）
 const blockStyle = computed(() => ({
   borderColor: props.repo.color,
   backgroundColor: `${props.repo.color}1a`,

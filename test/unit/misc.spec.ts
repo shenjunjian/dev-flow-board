@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseRepoAddress } from '../../shared/utils/repo-address'
-import { isRefreshInterval, isRepoColor } from '../../shared/utils/colors'
+import { isRefreshInterval, isRepoColor, REPO_COLORS } from '../../shared/utils/colors'
 
 describe('parseRepoAddress', () => {
   it('owner/repo 形态', () => {
@@ -21,9 +21,12 @@ describe('parseRepoAddress', () => {
 })
 
 describe('colors 纯函数', () => {
-  it('色板 11 色且 isRepoColor 正确判别', () => {
+  it('色板 6 色且 isRepoColor 正确判别', () => {
+    expect(REPO_COLORS).toHaveLength(6)
     expect(isRepoColor('#1971c2')).toBe(true)
     expect(isRepoColor('#ffffff')).toBe(false)
+    // 浅色已从色板移除
+    expect(isRepoColor('#a5d8ff')).toBe(false)
   })
 
   it('isRefreshInterval 只认 4 档', () => {
