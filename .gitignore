@@ -1,0 +1,16 @@
+# dependencies
+node_modules
+
+# nuxt
+.nuxt
+.output
+dist
+
+# 本地 SQLite 数据
+data
+
+# logs
+*.log
+
+# misc
+.DS_Store

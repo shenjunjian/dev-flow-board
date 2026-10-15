@@ -1,0 +1,9 @@
+<template>
+  <UApp :locale="zh_cn">
+    <NuxtPage />
+  </UApp>
+</template>
+
+<script setup lang="ts">
+import { zh_cn } from '@nuxt/ui/locale'
+</script>
