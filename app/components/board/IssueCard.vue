@@ -15,11 +15,19 @@ const highlighted = computed(() => {
 // 需求列和完成列不画状态图标
 const showStatusIcon = computed(() => props.issue.column === 'dev' || props.issue.column === 'review')
 
-const timelineText = computed(() => props.issue.timeline.join('\n'))
+// 时间线逐条渲染进 tooltip 的 #content 插槽：
+// text 属性渲染的是带 truncate（white-space:nowrap）的单行 span，\n 不会换行，
+// 且 content 主题自带 h-6，多行会被裁掉，所以这里用插槽 + 覆盖 ui.content。
 </script>
 
 <template>
-  <UTooltip :text="timelineText" :content="{ side: 'top', collisionPadding: 12 }">
+  <UTooltip
+    :disabled="!issue.timeline.length"
+    :content="{ side: 'top', align: 'start', collisionPadding: 12 }"
+    :ui="{
+      content: 'flex-col items-start gap-1.5 h-auto max-w-[min(28rem,calc(100vw-2rem))] px-2.5 py-2',
+    }"
+  >
     <div
       class="group relative cursor-default rounded-md border bg-default px-2.5 py-2 text-xs shadow-xs transition-colors"
       :class="highlighted ? 'border-warning ring-2 ring-warning/40' : 'border-muted'"
@@ -61,5 +69,12 @@ const timelineText = computed(() => props.issue.timeline.join('\n'))
         </span>
       </div>
     </div>
+    <template #content>
+      <span
+        v-for="(line, i) in issue.timeline"
+        :key="i"
+        class="block w-full whitespace-pre-line break-words text-left leading-4"
+      >{{ line }}</span>
+    </template>
   </UTooltip>
 </template>
