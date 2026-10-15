@@ -45,20 +45,24 @@ const props = defineProps<{ status: string }>()
       <path d="M12 3a9 9 0 1 0 9 9" />
     </svg>
 
-    <!-- Review：进行中（放大镜脉冲） -->
+    <!-- Review：检视中 —— 放大镜沿圆形轨迹一圈圈巡行（找 bug 的样子），轨迹本身不画出来 -->
     <svg
       v-else-if="props.status === 'Review'"
       viewBox="0 0 24 24"
-      class="board-icon-pulse h-5 w-5 text-info"
+      class="board-icon-orbit-svg h-5 w-5 text-info"
       fill="none"
       stroke="currentColor"
       stroke-width="2"
       stroke-linecap="round"
       stroke-linejoin="round"
     >
-      <circle cx="10.5" cy="10.5" r="6.5" />
-      <path d="m20 20-4.8-4.8" />
-      <path d="m8 10.5 1.8 1.8 3.2-3.6" />
+      <g transform="translate(12 12)">
+        <!-- 外层 g 只做圆周平移，放大镜姿态保持恒定（手柄始终朝右下） -->
+        <g class="board-icon-orbit">
+          <circle r="6.5" />
+          <path d="m4.6 4.6 2.9 2.9" />
+        </g>
+      </g>
     </svg>
 
     <!-- DevDone：高对比勾 -->
@@ -113,22 +117,45 @@ const props = defineProps<{ status: string }>()
   }
 }
 
-@keyframes board-pulse {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.55;
-    transform: scale(0.88);
-  }
+/*
+ * 让放大镜沿圆形轨迹巡行：只用 translate 采样圆周（每 30° 一点，半径 4.5），
+ * 不做 rotate —— 放大镜姿态恒定（手柄始终朝右下），像举着放大镜扫查。
+ * 轨迹本身不画出来，只体现在运动上；20px 尺寸下 30° 折线与圆弧偏差 <0.15px，看不出来。
+ */
+@keyframes board-orbit {
+  0%      { transform: translate(0, -4.5px); }
+  8.333%  { transform: translate(2.25px, -3.897px); }
+  16.667% { transform: translate(3.897px, -2.25px); }
+  25%     { transform: translate(4.5px, 0); }
+  33.333% { transform: translate(3.897px, 2.25px); }
+  41.667% { transform: translate(2.25px, 3.897px); }
+  50%     { transform: translate(0, 4.5px); }
+  58.333% { transform: translate(-2.25px, 3.897px); }
+  66.667% { transform: translate(-3.897px, 2.25px); }
+  75%     { transform: translate(-4.5px, 0); }
+  83.333% { transform: translate(-3.897px, -2.25px); }
+  91.667% { transform: translate(-2.25px, -3.897px); }
+  100%    { transform: translate(0, -4.5px); }
 }
 
 .board-icon-spin {
   animation: board-spin 1.6s linear infinite;
 }
 
-.board-icon-pulse {
-  animation: board-pulse 1.8s ease-in-out infinite;
+.board-icon-orbit {
+  animation: board-orbit 2.4s linear infinite;
+}
+
+/* 轨迹最外点时镜片描边恰好触到 viewBox 边缘，放开裁切让笔画完整显示 */
+.board-icon-orbit-svg {
+  overflow: visible;
+}
+
+/* 减弱动效偏好：停在轨迹顶端 */
+@media (prefers-reduced-motion: reduce) {
+  .board-icon-orbit {
+    animation: none;
+    transform: translate(0, -4.5px);
+  }
 }
 </style>

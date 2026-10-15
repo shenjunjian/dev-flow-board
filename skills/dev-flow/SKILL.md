@@ -52,10 +52,10 @@ Issue 的重要度 Label:  High / Low。 注意：在修改状态Label时，不�
 如果包含`Story`的Label，则先为该Issue 添加 `WaitDev` 的Label，并移除`Story`的Label。 然后根据Issue详情和用户的要求以及仓库中代码进行分析，生成该需求或任务的详细实施方案， 按照`评论工单`的方式评论到该Issue下面。
 如果用户明确求生成开发计划，或者需求更适合进行多步开发时，请参考 `开发计划的格式` 来生成开发计划，之后评论在当前Issue下面，并请按照`子工单`的方法，为该Issue创建 sub-issue， 并分析子工单之间的阻塞关系之后，创建相应的阻塞。 子工单也要添加 `WaitDev` 的Label。
 
-### 当 skill 说"实现/解决需求，任务，或工单"
+### 当 skill 说"实现/解决/修复需求，任务，或工单"
 
-按上文**读取工单**的方式读取工单的详情以及实施方案等信息后，如果当前Issue的Label 不包含 `WaitDev`的Label，则立即提醒用户并立即停止。
-如果包含`WaitDev`的Label， 则为该Issue 修改为 `Dev` 的Label，之后再进行开发。
+按上文**读取工单**的方式读取工单的详情以及实施方案等信息后，如果当前Issue的Label 不包含 `WaitDev` 或 `ReviewErrors`的Label，则立即提醒用户并立即停止。
+如果包含`WaitDev`或 `ReviewErrors`的Label， 则为该Issue 修改为 `Dev` 的Label，之后再进行开发,或修改检视出来的问题。
 
 ### 当 skill 说"提交代码/开发完成"
 
