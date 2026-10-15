@@ -12,11 +12,10 @@ description: 自动向仓库创建issue 或更新issue,附带正确的Label名�
 
 每一个Issue 相当一个工单，需求，任务。
 
-Issue 的状态 Label: Story / WaitDev / Dev / DevDone / Review / ReviewDone / ReviewErrors
+Issue 的状态 Label: Story / WaitDev / Dev / DevDone / Review / ReviewDone / ReviewErrors / Merged
 Issue 的重要度 Label:  High / Low。 注意：在修改状态Label时，不要修改重要度Label。
 
-你使用 issue 的Label 进行 issue 跟踪， 用户说 `#N` 时通常就是指的相应Issue。 你使用 gh cli 在github上自动创建issue,回复issue,并标记正确的Label, 它主要有以下场景：
-
+你使用 issue 的Label 进行 issue 跟踪， 用户说 `#N` 时通常就是指的相应Issue，或相应的pr。你应该使用 gh cli 在github上自动创建issue,回复issue,并标记正确的Label, 它主要有以下场景：
 
 - **创建工单**：`gh issue create --title "..." --body "..."`。多行正文用 heredoc。
 - **读取工单**：`gh issue view <number> --json number,title,body,labels,comments`。
@@ -25,13 +24,17 @@ Issue 的重要度 Label:  High / Low。 注意：在修改状态Label时，不�
 - **评论工单**：`gh issue comment <number> --body "..."`，在工单中追加评论
 - **修改评论**： `gh issue comment <issue-number> --edit-last --body "..."`
 - **添加 / 移除标签**：`gh issue edit <number> --add-label "..."` / `--remove-label "..."`
-- **关闭**：`gh issue close <number> --comment "..."`
+- **关闭Issue**：`gh issue close <number> --comment "..."`
 
 - **子工单**：以 GitHub sub-issue 的形式关联到当前Issue。工单被认领后，指派给当前推进它的开发者。
 - **阻塞关系**：使用 GitHub 的**原生 issue dependencies**，这是规范的、界面上可见的表示方式。用 `gh api --method POST repos/<owner>/<repo>/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>` 加一条边，其中 `<blocker-db-id>` 是阻塞方的数字 **database id**（`gh api repos/<owner>/<repo>/issues/<n> --jq .id`，_不是_ `#number`，也不是 `node_id`）。GitHub 会通过 `issue_dependencies_summary.blocked_by` 报告阻塞项（只报未关闭的，也就是实时闸门）。所有阻塞方都关闭后，该工单即为解除阻塞。
 - **前沿查询**：列出Issue的未关闭子工单（`gh issue list --state open`，范围限定到 Issue 的 sub-issue / 任务列表），剔除有未关闭阻塞方的（`issue_dependencies_summary.blocked_by > 0`，或 `Blocked by` 行里有未关闭工单）或已有指派人的工单；按 map 中顺序取第一个。
 - **认领/指派工单**：`gh issue edit <n> --add-assignee @me`，这是本次会话的第一次写入。
 - **解决工单**：`gh issue comment <n> --body "<answer>"`，然后 `gh issue close <n>`。
+
+-- **创建pr**: `gh pr create --title "..." --body "..." --base main --head feature-branch`
+-- **查询pr**: `gh pr view <umber>`
+-- **合并pr**: `gh pr merge <umber> --squash`
 
 从 `git remote -v` 推断仓库；在克隆目录里运行时 `gh` 会自动完成这件事。
 
@@ -56,9 +59,9 @@ Issue 的重要度 Label:  High / Low。 注意：在修改状态Label时，不�
 
 ### 当 skill 说"提交代码/开发完成"
 
-先判断当前的代码，若没有提交则生成commit 信息并自动提交。在代码提交之后，为该issue 修改为 `DevDone`的标签。
-如果当前是 sub-issue, 则要找到父issue, 并执行`修改评论`的方法修改本次子任务对应的`todos`项的status 状态。
-如果当前Issue阻塞了另一个任务，需要调用解除该阻塞。
+先判断当前的代码，若没有提交则生成commit 信息并自动提交, commit信息不要自动关闭该Issue。在代码提交之后，为该issue 修改为 `DevDone`的标签。
+自动执行`创建pr`方法, pr详情必须包含 `closes #N`，以便pr合入时自动关闭当前issue.
+
 
 ### 当 skill 说"检视/审核"
 
@@ -66,6 +69,17 @@ Issue 的重要度 Label:  High / Low。 注意：在修改状态Label时，不�
 在代码检视后，如果发现问题，则执行`评论工单`方法进行评论，每个问题是一个单独的评论，最后要将当前Issue的Label 修改为 `ReviewErrors`。
 如果代码检视未发现问题，将当前Issue的Label 修改为 `ReviewDone`。
 
+如果检视结果是  `ReviewDone`, 那么继续下面操作：
+
+- 如果当前是 sub-issue, 则要找到父issue, 并执行`修改评论`的方法修改本次子任务对应的`todos`项的status 状态。
+- 如果当前Issue阻塞了另一个任务，需要调用解除该阻塞。
+
+### 当 skill 说"合入pr/接受pr"时
+
+先执行`查询pr`的方法，可以查出该pr关联的Issue Number, 并判断是否 `ReviewDone`标签。如果没有 `ReviewDone`标签，就立即提醒用户并立即停止。
+之后判断该pr是否符合合入条件，如果不能合入，就立即提醒用户并立即停止。
+
+前面都满足的话，就立即执行`合并pr`的方法，并修改Issue的状态Label 为 `Merged`, 关闭Issue.
 
 ## 详细实施方案
 
