@@ -15,5 +15,11 @@
     "drizzle-orm": "^0.45.4",
     "nuxt": "^4.6.1",
     "tailwindcss": "^4"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.6.5",
+    "typescript": "^5.9.3",
+    "vue-tsc": "^3.3.13"
   }
 }
