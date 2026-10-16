@@ -31,6 +31,7 @@ export const issues = sqliteTable('issues', {
   body: text('body'),
   state: text('state').notNull(), // open | closed
   importance: text('importance').notNull().default('low'), // high | low
+  taskType: text('task_type'), // feature | bug | refactor | null
   statusLabel: text('status_label'),
   column: text('board_column').notNull(), // story | dev | review | done
   assignee: text('assignee'),
@@ -84,6 +85,7 @@ CREATE TABLE IF NOT EXISTS issues (
   body TEXT,
   state TEXT NOT NULL,
   importance TEXT NOT NULL DEFAULT 'low',
+  task_type TEXT,
   status_label TEXT,
   board_column TEXT NOT NULL,
   assignee TEXT,
@@ -117,9 +119,23 @@ function createDb() {
   sqlite.pragma('journal_mode = WAL')
   sqlite.pragma('foreign_keys = ON')
   sqlite.exec(DDL)
+  migrateColumns(sqlite)
   const db = drizzle(sqlite)
   seedOnFirstRun(db)
   return { sqlite, db }
+}
+
+/**
+ * 轻量加列迁移：老库的表是 CREATE TABLE IF NOT EXISTS 建出来的，新增列不会自动补上，
+ * 这里按 table_info 检查缺哪列就 ALTER TABLE 加哪列（幂等，可重复启动）。
+ */
+function migrateColumns(sqlite: Database.Database): void {
+  const hasColumn = (table: string, column: string): boolean =>
+    (sqlite.pragma(`table_info(${table})`) as Array<{ name: string }>).some(c => c.name === column)
+
+  if (!hasColumn('issues', 'task_type')) {
+    sqlite.exec('ALTER TABLE issues ADD COLUMN task_type TEXT')
+  }
 }
 
 export type BoardDb = ReturnType<typeof createDb>

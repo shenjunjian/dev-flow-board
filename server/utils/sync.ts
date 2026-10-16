@@ -88,6 +88,7 @@ function isIssueRowChanged(old: IssueRow, next: IssueRow): boolean {
     || old.body !== next.body
     || old.state !== next.state
     || old.importance !== next.importance
+    || old.taskType !== next.taskType
     || old.statusLabel !== next.statusLabel
     || old.column !== next.column
     || old.assignee !== next.assignee
@@ -238,6 +239,7 @@ async function syncRepoInner(repo: RepoRow, mode: SyncMode): Promise<SyncResult>
       body: issue.body ?? null,
       state: issue.state,
       importance: decision.importance,
+      taskType: decision.taskType,
       statusLabel: decision.statusLabel,
       column: decision.column,
       assignee: issue.assignees[0]?.login ?? null,
@@ -257,6 +259,7 @@ async function syncRepoInner(repo: RepoRow, mode: SyncMode): Promise<SyncResult>
             body: values.body,
             state: values.state,
             importance: values.importance,
+            taskType: values.taskType,
             statusLabel: values.statusLabel,
             column: values.column,
             assignee: values.assignee,

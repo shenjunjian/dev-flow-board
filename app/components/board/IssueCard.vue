@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BoardIssue, BoardRepo } from '#shared/utils/board'
+import type { BoardIssue, BoardRepo, TaskType } from '#shared/utils/board'
 
 const props = defineProps<{
   issue: BoardIssue
@@ -14,6 +14,18 @@ const highlighted = computed(() => {
 
 // 需求列和完成列不画状态图标
 const showStatusIcon = computed(() => props.issue.column === 'dev' || props.issue.column === 'review')
+
+// 任务类型 tag：feature 蓝、bug 红、refactor 琥珀；无类型不渲染
+type TaskBadgeColor = 'info' | 'error' | 'warning'
+const TASK_TYPE_BADGE: Record<TaskType, { color: TaskBadgeColor, label: string }> = {
+  feature: { color: 'info', label: 'feature' },
+  bug: { color: 'error', label: 'bug' },
+  refactor: { color: 'warning', label: 'refactor' },
+}
+
+const taskBadge = computed(() =>
+  props.issue.taskType ? TASK_TYPE_BADGE[props.issue.taskType] : null,
+)
 
 // 时间线逐条渲染进 tooltip 的 #content 插槽：
 // text 属性渲染的是带 truncate（white-space:nowrap）的单行 span，\n 不会换行，
@@ -39,6 +51,16 @@ const showStatusIcon = computed(() => props.issue.column === 'dev' || props.issu
       <div class="flex items-start gap-2">
         <span class="shrink-0 font-mono text-lg leading-6 font-bold tracking-tight text-primary">#{{ issue.number }}</span>
         <span class="line-clamp-1 flex-1 text-sm leading-6 font-medium text-highlighted">{{ issue.title }}</span>
+        <UBadge
+          v-if="taskBadge"
+          :color="taskBadge.color"
+          variant="subtle"
+          size="sm"
+          class="shrink-0"
+          :data-task-type="issue.taskType"
+        >
+          {{ taskBadge.label }}
+        </UBadge>
         <UBadge
           v-if="issue.importance === 'high'"
           color="error"

@@ -21,6 +21,7 @@ export function toBoardIssue(row: IssueRow, timeline: string[]): BoardIssue {
     body: row.body ?? null,
     state: row.state as BoardIssue['state'],
     importance: row.importance as BoardIssue['importance'],
+    taskType: row.taskType as BoardIssue['taskType'],
     statusLabel: row.statusLabel ?? null,
     column: row.column as BoardIssue['column'],
     assignee: row.assignee ?? null,

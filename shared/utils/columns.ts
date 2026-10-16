@@ -1,4 +1,4 @@
-import type { BoardColumn, Importance } from './board'
+import type { BoardColumn, Importance, TaskType } from './board'
 
 /** Story label */
 export const STORY_LABEL = 'Story'
@@ -6,6 +6,21 @@ export const STORY_LABEL = 'Story'
 export const MERGED_LABEL = 'Merged'
 /** 高重要性 label */
 export const HIGH_LABEL = 'High'
+
+/** 任务类型 label（大小写不敏感匹配），顺序即多贴时的优先顺序 */
+export const TASK_TYPE_LABELS: Record<string, TaskType> = {
+  feature: 'feature',
+  bug: 'bug',
+  refactor: 'refactor',
+}
+
+/** 从 label 名解析任务类型；非类型 label 返回 null */
+export function parseTaskType(labelNames: string[]): TaskType | null {
+  for (const [name, type] of Object.entries(TASK_TYPE_LABELS)) {
+    if (labelNames.some(l => l.toLowerCase() === name)) return type
+  }
+  return null
+}
 
 /** 状态 label 的固定顺序（同阶段 tie-break 缺时间数据时按此顺序取靠前的） */
 export const STATUS_LABELS = ['Story', 'WaitDev', 'Dev', 'DevDone', 'Review', 'ReviewDone', 'ReviewErrors'] as const
@@ -49,6 +64,8 @@ export interface IssueColumnDecision {
   /** 决定列的状态 label；closed+Merged 进完成列时为 null（完成列无状态图标） */
   statusLabel: string | null
   importance: Importance
+  /** 任务类型；issue 未带 feature/bug/refactor 任一 label 时为 null */
+  taskType: TaskType | null
 }
 
 /**
@@ -56,26 +73,28 @@ export interface IssueColumnDecision {
  * - closed + Merged → 已完成；closed 无 Merged → 不纳入
  * - open：检视（Review/ReviewDone/ReviewErrors）> 开发（WaitDev/Dev/DevDone）> 需求（仅 Story）
  * - 同一阶段贴多个 label 时，以最近一次 labeled 事件为准
+ * - 任务类型与列判定无关，按 feature > bug > refactor 取第一个命中的
  */
 export function decideIssueColumn(input: IssueColumnInput): IssueColumnDecision {
   const labels = new Set(input.labels)
   const importance: Importance = labels.has(HIGH_LABEL) ? 'high' : 'low'
+  const taskType = parseTaskType(input.labels)
 
   if (input.state === 'closed') {
     if (labels.has(MERGED_LABEL)) {
-      return { included: true, column: 'done', statusLabel: null, importance }
+      return { included: true, column: 'done', statusLabel: null, importance, taskType }
     }
-    return { included: false, column: null, statusLabel: null, importance }
+    return { included: false, column: null, statusLabel: null, importance, taskType }
   }
 
   for (const stage of STAGE_PRIORITY) {
     const stageLabels = STATUS_LABELS.filter(l => labels.has(l) && STATUS_LABEL_STAGES[l] === stage)
     if (stageLabels.length === 0) continue
     const chosen = pickLatestLabeled(stageLabels, input.latestLabeledAt)
-    return { included: true, column: stage, statusLabel: chosen, importance }
+    return { included: true, column: stage, statusLabel: chosen, importance, taskType }
   }
 
-  return { included: false, column: null, statusLabel: null, importance }
+  return { included: false, column: null, statusLabel: null, importance, taskType }
 }
 
 /** 同阶段多个 label：取最近 labeled 的；时间缺失或平局时取声明顺序靠前的 */

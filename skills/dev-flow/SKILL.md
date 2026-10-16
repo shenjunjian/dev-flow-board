@@ -1,105 +1,132 @@
 ---
 name: dev-flow
-description: 自动向仓库创建issue 或更新issue,附带正确的Label名字，用于标识用户的开发阶段
+description: 用 gh 管理当前 GitHub 仓库的工单状态与 PR 合入。用户说发布、分析、拆解、实现、修复、提交、开发完成、检视、审核、合入、接受 PR，或提到 #N 时使用。同一时刻只保留一个状态 label，不改动重要性 label。
 ---
 
-## 前置条件： 
+# 工单流
 
-- 默认用户机器已经安装gh cli， 并且正常登录。 不要每次判断用户是否安装了 gh cli, 只有当执行返回错误时，才提醒用户安装并告知详细的安装步骤。
-- 默认当前用户在一个github仓库中，自动获取项目的github 地址。
+工单就是 GitHub issue。用状态 label 跟踪阶段，用 PR 合入收尾。
 
-## 约定
+## 前提
 
-每一个Issue 相当一个工单，需求，任务。
+- 默认 `gh` 已安装并登录。不要预先检测。命令因未安装或未登录失败时，再让用户安装 GitHub CLI（https://cli.github.com）并执行 `gh auth login`。
+- 在仓库目录中执行。`gh` 使用当前目录对应的 GitHub 仓库。
 
-Issue 的状态 Label: Story / WaitDev / Dev / DevDone / Review / ReviewDone / ReviewErrors / Merged
-Issue 的重要度 Label:  High / Low。 注意：在修改状态Label时，不要修改重要度Label。
+## 标签
 
-你使用 issue 的Label 进行 issue 跟踪， 用户说 `#N` 时通常就是指的相应Issue，或相应的pr。你应该使用 gh cli 在github上自动创建issue,回复issue,并标记正确的Label, 它主要有以下场景：
+状态 label，同一时刻只保留一个：`Story`、`WaitDev`、`Dev`、`DevDone`、`Review`、`ReviewDone`、`ReviewErrors`。
 
-- **创建工单**：`gh issue create --title "..." --body "..."`。多行正文用 heredoc。
-- **读取工单**：`gh issue view <number> --json number,title,body,labels,comments`。
-- **列出工单**：`gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'`，并配合合适的 `--label` 和 `--state` 过滤器。
-- **把工单设为父工单的子工单**：`gh issue create --parent <parent> ...`，或事后用 `gh issue edit <parent> --add-sub-issue <child>`（`gh` 2.94+）。旧版 `gh`：`gh api --method POST repos/<owner>/<repo>/issues/<parent>/sub_issues -F sub_issue_id=<child-db-id>`（database id，取法见下文**阻塞关系**）。没有 sub-issue 能力时，在子工单正文顶部写 `Part of #<parent>`。
-- **评论工单**：`gh issue comment <number> --body "..."`，在工单中追加评论
-- **修改评论**： `gh issue comment <issue-number> --edit-last --body "..."`
-- **添加 / 移除标签**：`gh issue edit <number> --add-label "..."` / `--remove-label "..."`
-- **关闭Issue**：`gh issue close <number> --comment "..."`
+重要性 label：`High`、`Low`。用户未说明时用 `Low`。更换状态时不添加、不移除重要性 label。
 
-- **子工单**：以 GitHub sub-issue 的形式关联到当前Issue。工单被认领后，指派给当前推进它的开发者。
-- **阻塞关系**：使用 GitHub 的**原生 issue dependencies**，这是规范的、界面上可见的表示方式。用 `gh api --method POST repos/<owner>/<repo>/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>` 加一条边，其中 `<blocker-db-id>` 是阻塞方的数字 **database id**（`gh api repos/<owner>/<repo>/issues/<n> --jq .id`，_不是_ `#number`，也不是 `node_id`）。GitHub 会通过 `issue_dependencies_summary.blocked_by` 报告阻塞项（只报未关闭的，也就是实时闸门）。所有阻塞方都关闭后，该工单即为解除阻塞。
-- **前沿查询**：列出Issue的未关闭子工单（`gh issue list --state open`，范围限定到 Issue 的 sub-issue / 任务列表），剔除有未关闭阻塞方的（`issue_dependencies_summary.blocked_by > 0`，或 `Blocked by` 行里有未关闭工单）或已有指派人的工单；按 map 中顺序取第一个。
-- **认领/指派工单**：`gh issue edit <n> --add-assignee @me`，这是本次会话的第一次写入。
-- **解决工单**：`gh issue comment <n> --body "<answer>"`，然后 `gh issue close <n>`。
+任务类型 label: `feature` / `bug` / `refactor`。
 
--- **创建pr**: `gh pr create --title "..." --body "..." --base main --head feature-branch`
--- **查询pr**: `gh pr view <umber>`
--- **合并pr**: `gh pr merge <umber> --squash`
+换状态：卸下其它全部状态 label，再贴上目标 label。从检视退回 `Dev` 时必须卸下 `Review`、`ReviewDone`、`ReviewErrors`；只加 `Dev` 时，看板仍停在检视列。
 
-从 `git remote -v` 推断仓库；在克隆目录里运行时 `gh` 会自动完成这件事。
+合入例外：只追加 `Merged`，保留`DevDone` 或 `ReviewDone`，然后再合并 PR。`Merged` 不是阶段 label。
 
-## 执行方法
+## 编号
 
-只有对话中或对话上下文中有准确的 Issue Number时，才执行下面的步骤
+- 发布不需要编号。
+- 合入、接受：`#N` 是 PR 编号。未给编号时用当前分支的开放 PR。
+- 其它触发：`#N` 是工单编号。
+- issue 与 PR 的编号相互独立。先用对应的 `view` 确认存在；确认失败就停止并说明原因。
 
-### 当 skill 说"发布需求，任务，或工单"
+## 触发
 
-请自动分析出任务的标题和详情以及重要度，然后创建创建一个 GitHub issue，并打上 `Story`的Label和 重要度Label。
+不满足入口时，说明原因并停止。此时不改 label，不关闭工单。
 
-### 当 skill 说"分析/拆解需求，任务，或工单"
+### 发布
 
-按上文**读取工单**的方式读取，如果当前Issue的Label 不包含 `Story`的Label， 则立即提醒用户它不是新发布的任务，并立即停止。
-如果包含`Story`的Label，则先为该Issue 添加 `WaitDev` 的Label，并移除`Story`的Label。 然后根据Issue详情和用户的要求以及仓库中代码进行分析，生成该需求或任务的详细实施方案， 按照`评论工单`的方式评论到该Issue下面。
-如果用户明确求生成开发计划，或者需求更适合进行多步开发时，请参考 `开发计划的格式` 来生成开发计划，之后评论在当前Issue下面，并请按照`子工单`的方法，为该Issue创建 sub-issue， 并分析子工单之间的阻塞关系之后，创建相应的阻塞。 子工单也要添加 `WaitDev` 的Label。
+用户说发布需求、任务或工单。
 
-### 当 skill 说"实现/解决/修复需求，任务，或工单"
+从对话归纳标题、正文、重要性（未说明则 `Low`）和任务类型。创建工单，贴上 `Story` 和该重要性 label 和 任务类型 label。不改代码，不提交。
 
-按上文**读取工单**的方式读取工单的详情以及实施方案等信息后，如果当前Issue的Label 不包含 `WaitDev` 或 `ReviewErrors`的Label，则立即提醒用户并立即停止。
-如果包含`WaitDev`或 `ReviewErrors`的Label， 则为该Issue 修改为 `Dev` 的Label，之后再进行开发,或修改检视出来的问题。
+### 分析 / 拆解
 
-### 当 skill 说"提交代码/开发完成"
+用户说分析或拆解，且已确定工单编号。工单没有 `Story` 时停止：它不是新发布的任务。
 
-先判断当前的代码，若没有提交则生成commit 信息并自动提交, commit信息不要自动关闭该Issue。在代码提交之后，为该issue 修改为 `DevDone`的标签。
-自动执行`创建pr`方法, pr详情必须包含 `closes #N`，以便pr合入时自动关闭当前issue.
+读取工单和仓库代码，写**一条**评论：
 
+- 单步：只写实施方案。
+- 用户要求开发计划，或任务适合分步：同一条评论在实施方案之后附上 `todos`。每个 todo 建一个子工单，贴 `WaitDev` 和重要性 label和任务类型label。有先后依赖时，用 `blocked_by` 把前置工单标为阻塞方。
 
-### 当 skill 说"检视/审核"
+评论、子工单和阻塞都成功创建后，把父工单的 `Story` 换成 `WaitDev`。父工单停在 `WaitDev`，不为它建 PR。子工单各自走后续状态机。
 
-先判断当前Issue有没有`DevDone`的Label， 如果没有则立即提醒用户并立即停止。如果包含`DevDone`的Label，则修改为 `Review` 的Label。
-在代码检视后，如果发现问题，则执行`评论工单`方法进行评论，每个问题是一个单独的评论，最后要将当前Issue的Label 修改为 `ReviewErrors`。
-如果代码检视未发现问题，将当前Issue的Label 修改为 `ReviewDone`。
+### 实现 / 修复
 
-如果检视结果是  `ReviewDone`, 那么继续下面操作：
+用户说实现、解决或修复，且已确定工单编号。工单上既没有 `WaitDev` 也没有 `ReviewErrors` 时停止。
 
-- 如果当前是 sub-issue, 则要找到父issue, 并执行`修改评论`的方法修改本次子任务对应的`todos`项的status 状态。
-- 如果当前Issue阻塞了另一个任务，需要调用解除该阻塞。
+先读取正文和评论中的方案，状态 label 换成 `Dev`，再改代码或按检视意见修改。
 
-### 当 skill 说"合入pr/接受pr"时
+本阶段不 commit、不建 PR、不关闭工单。
 
-先执行`查询pr`的方法，可以查出该pr关联的Issue Number, 并判断是否 `ReviewDone`标签。如果没有 `ReviewDone`标签，就立即提醒用户并立即停止。
-之后判断该pr是否符合合入条件，如果不能合入，就立即提醒用户并立即停止。
+### 提交 / 开发完成
 
-前面都满足的话，就立即执行`合并pr`的方法，并修改Issue的状态Label 为 `Merged`, 关闭Issue.
+用户说提交代码或开发完成，且已确定工单编号。工单没有 `Dev` 时停止。
 
-## 实施方案的编写建议
+工作区有未提交改动才 commit。提交标题为`fix(..): ...`的模式，使用任务类型 feat/fix/refactor 做前缀。提交说明不包含 `Fixes`、`Closes`、`Resolves` 加 `Closes#编号`。没有未提交改动就跳过 commit。
 
-- 阐述实现的具体逻辑，如果有破坏之前的实现或影响其它模块，需要明确告警，没有则不要输出。
-- 分步骤解释
-- 绘制关系图/逻辑图/依赖图等，使用Mermaid 图表
-- 使用中文的伪代码解释行为
-- 使用 emoji 图标
-- 不要太拖沓，保持精简。人人都知道的要忽略。
+该工单已有开放 PR 则沿用。没有则先把当前分支推送到远端，再创建 PR：base 为仓库默认分支，head 为当前分支，正文包含 `Closes #<工单编号>`。
 
-## 开发计划的格式 
+没有可纳入 PR 的提交时停止，不要改 label。PR 就绪后，把状态换成 `DevDone`。
 
-生成以下格式：id：为计划的标题， content：一句话浓缩整个计划的内容。 status： 可选值为： pending/completed。
+### 检视 / 审核
 
+用户说检视或审核，且已确定工单编号。工单没有 `DevDone` 时停止。
+
+状态先换成 `Review`，再查看该工单关联 PR 的 diff。
+
+- 有问题：每个问题一条评论，然后换成 `ReviewErrors`。
+- 无问题：换成 `ReviewDone`。若是子工单，把父工单里对应 todo 的 `status` 改为 `completed`。父工单取 `parent` 字段；没有该字段时，从正文首行 `Part of #<parent>` 识别。修改含 `todos:` 且含该子任务 `id` 的那条评论。不用 `--edit-last`。
+
+不关闭工单，不删除 `blocked_by`。阻塞方合入并关闭后，GitHub 不再把它算作未关闭阻塞。
+
+### 合入 / 接受
+
+用户说合入或接受 PR。状态为 `DevDone` 或 `ReviewDone` 都可以合入（简单任务是不需要检视的）
+
+读取 PR 的 `closingIssuesReferences` 和 `mergeable`。每张关联工单都要有`ReviewDone` 或 `DevDone`，否则停止。`mergeable` 不是 `MERGEABLE` 时停止并说明原因。
+
+先为每张关联工单追加 `Merged`，保留原状态 label，保持开放。再执行 `gh pr merge <n> --squash`。
+
+PR 正文的 `Closes` 会关闭工单。不要再执行 `gh issue close`。合并失败时不关闭工单，不卸下 `ReviewDone`。
+
+## 命令
+
+多行正文写入临时文件，用 `--body-file`。
+
+- 读工单：`gh issue view <n> --json number,title,body,labels,comments,parent`
+- 建工单：`gh issue create --title "..." --body-file <file> --label Story --label Low`
+- 换状态：对每个要卸下的状态 label 各写一次 `--remove-label`，再 `--add-label` 目标。例：`gh issue edit <n> --remove-label Story --add-label WaitDev`
+- 只追加合入标记：`gh issue edit <n> --add-label Merged`
+- 评论：`gh issue comment <n> --body-file <file>`
+- 子工单：`gh issue create --parent <parent> --title "..." --body-file <file> --label WaitDev --label Low`。失败时改为正文首行 `Part of #<parent>`。
+- 阻塞：`<blocker-db-id>` 取 `gh api repos/<owner>/<repo>/issues/<blocker> --jq .id`。这是 database id，不是 `#number`，也不是 `node_id`。然后 `gh api --method POST repos/<owner>/<repo>/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`。
+- 改指定评论：在工单 `comments` 里找到目标 id。把新全文写成 JSON 文件 `{"body":"..."}`，再 `gh api --method PATCH repos/<owner>/<repo>/issues/comments/<comment-id> --input <file>`。
+- 默认分支：`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`
+- 查 PR：`gh pr view <n> --json number,body,mergeable,mergeStateStatus,closingIssuesReferences`
+- PR diff：`gh pr diff <n>`
+- 工单的开放 PR：`gh pr list --state open --json number,closingIssuesReferences`，保留引用了该工单的项。
+- 建 PR：`gh pr create --base <default> --head <current> --title "..." --body-file <file>`
+- 合并：`gh pr merge <n> --squash`
+
+## 实施方案
+
+评论中的方案只保留必要内容：
+
+- 分步骤写实现逻辑。
+- 会破坏既有行为或影响其它模块时写明告警；没有则不写。
+- 关系或依赖用 mermaid。
+- 行为用中文伪代码。
+- 省略常识，保持简短。
+
+## todos 格式
+
+`status` 只能是 `pending` 或 `completed`。`id` 是任务标题，`content` 是一句话。
+示例： 
 ```md
-📋 todos:
-  - id: 任务1标题
-    content: 计划内容
-    status: complete
-  - id: 任务2标题
-    content: 计划内容
+todos:
+  - id: 任务标题
+    content: 一句话说明
     status: pending
 ```

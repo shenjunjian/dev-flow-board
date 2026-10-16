@@ -13,6 +13,9 @@ export const BOARD_COLUMN_LABELS: Record<BoardColumn, string> = {
 /** 重要性：有 High label 为 high，否则 low */
 export type Importance = 'high' | 'low'
 
+/** 任务类型：issue 上的 feature / bug / refactor label；三者都没有时为 null */
+export type TaskType = 'feature' | 'bug' | 'refactor'
+
 /** 仓库（看板展示用） */
 export interface BoardRepo {
   id: number
@@ -32,6 +35,8 @@ export interface BoardIssue {
   body: string | null
   state: 'open' | 'closed'
   importance: Importance
+  /** 任务类型 label（feature | bug | refactor），无则 null */
+  taskType: TaskType | null
   /** 当前仍贴着的状态 label */
   statusLabel: string | null
   column: BoardColumn

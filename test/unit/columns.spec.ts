@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decideIssueColumn, isDoneIssueVisible } from '../../shared/utils/columns'
+import { decideIssueColumn, isDoneIssueVisible, parseTaskType } from '../../shared/utils/columns'
 
 const DAY = 2 * 24 * 60 * 60 * 1000
 
@@ -101,6 +101,54 @@ describe('decideIssueColumn 重要性', () => {
   it('无 High → low（即使带 Low）', () => {
     const d = decideIssueColumn({ state: 'open', labels: ['Story', 'Low'] })
     expect(d.importance).toBe('low')
+  })
+})
+
+describe('decideIssueColumn 任务类型', () => {
+  it('带 feature → feature', () => {
+    const d = decideIssueColumn({ state: 'open', labels: ['Story', 'feature'] })
+    expect(d.taskType).toBe('feature')
+  })
+
+  it('带 bug → bug（不影响纳入判定，仍按状态 label 定列）', () => {
+    const d = decideIssueColumn({ state: 'open', labels: ['Story', 'Dev', 'bug'] })
+    expect(d.column).toBe('dev')
+    expect(d.taskType).toBe('bug')
+  })
+
+  it('带 refactor → refactor；closed+Merged 也带类型', () => {
+    const d = decideIssueColumn({ state: 'closed', labels: ['DevDone', 'refactor', 'Merged'] })
+    expect(d.column).toBe('done')
+    expect(d.taskType).toBe('refactor')
+  })
+
+  it('多贴时按 feature > bug > refactor 取第一个命中', () => {
+    expect(decideIssueColumn({ state: 'open', labels: ['Story', 'refactor', 'bug', 'feature'] }).taskType).toBe('feature')
+    expect(decideIssueColumn({ state: 'open', labels: ['Story', 'refactor', 'bug'] }).taskType).toBe('bug')
+  })
+
+  it('大小写不敏感：Bug / Feature / Refactor 也能识别', () => {
+    expect(decideIssueColumn({ state: 'open', labels: ['Story', 'Bug'] }).taskType).toBe('bug')
+    expect(decideIssueColumn({ state: 'open', labels: ['Story', 'Feature'] }).taskType).toBe('feature')
+    expect(decideIssueColumn({ state: 'open', labels: ['Story', 'Refactor'] }).taskType).toBe('refactor')
+  })
+
+  it('三种都没有 → null（卡片不显示 tag）', () => {
+    const d = decideIssueColumn({ state: 'open', labels: ['Story', 'High'] })
+    expect(d.taskType).toBeNull()
+  })
+})
+
+describe('parseTaskType', () => {
+  it('命中类型 label', () => {
+    expect(parseTaskType(['Story', 'feature'])).toBe('feature')
+    expect(parseTaskType(['Bug'])).toBe('bug')
+    expect(parseTaskType(['Refactor'])).toBe('refactor')
+  })
+
+  it('非类型 label 与空数组返回 null', () => {
+    expect(parseTaskType([])).toBeNull()
+    expect(parseTaskType(['Story', 'High', 'Dev'])).toBeNull()
   })
 })
 
