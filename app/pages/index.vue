@@ -241,16 +241,11 @@ onBeforeUnmount(() => {
         :issues="filteredIssues"
         :now="now"
       />
-      <div v-else class="flex min-h-0 flex-1 items-center justify-center p-6" data-view="analysis">
-        <div class="text-center">
-          <p class="text-sm font-semibold text-highlighted">
-            研发分析
-          </p>
-          <p class="mt-1 text-xs text-dimmed">
-            {{ analysisIssues.length }} 张工单
-          </p>
-        </div>
-      </div>
+      <AnalysisView
+        v-else-if="mode === 'analysis'"
+        :repos="repos"
+        :issues="analysisIssues"
+      />
     </main>
 
     <!-- 阶段4 实现仓库管理弹窗 -->
