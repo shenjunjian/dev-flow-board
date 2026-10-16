@@ -27,6 +27,9 @@ const taskBadge = computed(() =>
   props.issue.taskType ? TASK_TYPE_BADGE[props.issue.taskType] : null,
 )
 
+// 标题 → 该 issue 在 GitHub 的页面，新标签页打开
+const issueUrl = computed(() => `https://github.com/${props.repo.owner}/${props.repo.name}/issues/${props.issue.number}`)
+
 // 时间线逐条渲染进 tooltip 的 #content 插槽：
 // text 属性渲染的是带 truncate（white-space:nowrap）的单行 span，\n 不会换行，
 // 且 content 主题自带 h-6，多行会被裁掉，所以这里用插槽 + 覆盖 ui.content。
@@ -50,7 +53,13 @@ const taskBadge = computed(() =>
     >
       <div class="flex items-start gap-2">
         <span class="shrink-0 font-mono text-lg leading-6 font-bold tracking-tight text-primary">#{{ issue.number }}</span>
-        <span class="line-clamp-1 flex-1 text-sm leading-6 font-medium text-highlighted">{{ issue.title }}</span>
+        <a
+          :href="issueUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="line-clamp-1 flex-1 text-sm leading-6 font-medium text-highlighted underline-offset-2 hover:text-primary hover:underline"
+          :title="`在 GitHub 打开 #${issue.number}`"
+        >{{ issue.title }}</a>
         <UBadge
           v-if="taskBadge"
           :color="taskBadge.color"

@@ -18,6 +18,9 @@ const blockStyle = computed(() => ({
   borderColor: props.repo.color,
   backgroundColor: `${props.repo.color}1a`,
 }))
+
+// 仓库名 → GitHub Issue 列表页，新标签页打开
+const issuesUrl = computed(() => `https://github.com/${props.repo.owner}/${props.repo.name}/issues`)
 </script>
 
 <template>
@@ -28,7 +31,13 @@ const blockStyle = computed(() => ({
   >
     <div class="mb-1.5 flex items-center gap-1.5 px-0.5">
       <UIcon name="i-lucide-git-branch" class="h-3.5 w-3.5" :style="{ color: repo.color }" />
-      <span class="truncate text-[13px] font-semibold text-highlighted">{{ repo.fullName }}</span>
+      <a
+        :href="issuesUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="truncate text-[13px] font-semibold text-highlighted underline-offset-2 hover:text-primary hover:underline"
+        :title="`在 GitHub 打开 ${repo.fullName} 的 Issues`"
+      >{{ repo.fullName }}</a>
       <span class="ml-auto rounded-full bg-elevated px-1.5 py-0.5 text-[10px] text-dimmed">{{ sorted.length }}</span>
     </div>
     <div class="space-y-1.5">
