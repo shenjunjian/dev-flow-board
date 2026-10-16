@@ -39,6 +39,8 @@ export const issues = sqliteTable('issues', {
   githubUpdatedAt: integer('github_updated_at', { mode: 'timestamp_ms' }).notNull(),
   githubClosedAt: integer('github_closed_at', { mode: 'timestamp_ms' }),
   highlightUntil: integer('highlight_until', { mode: 'timestamp_ms' }),
+  /** 父工单编号；没有父子关系时为 null */
+  parentNumber: integer('parent_number'),
 }, table => [
   primaryKey({ columns: [table.repoId, table.number] }),
 ])
@@ -93,6 +95,7 @@ CREATE TABLE IF NOT EXISTS issues (
   github_updated_at INTEGER NOT NULL,
   github_closed_at INTEGER,
   highlight_until INTEGER,
+  parent_number INTEGER,
   PRIMARY KEY (repo_id, number)
 );
 
@@ -135,6 +138,9 @@ function migrateColumns(sqlite: Database.Database): void {
 
   if (!hasColumn('issues', 'task_type')) {
     sqlite.exec('ALTER TABLE issues ADD COLUMN task_type TEXT')
+  }
+  if (!hasColumn('issues', 'parent_number')) {
+    sqlite.exec('ALTER TABLE issues ADD COLUMN parent_number INTEGER')
   }
 }
 

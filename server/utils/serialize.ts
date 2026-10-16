@@ -1,4 +1,4 @@
-import type { BoardIssue, BoardRepo } from '#shared/utils/board'
+import type { BoardIssue, BoardRepo, BoardTimelineItem } from '#shared/utils/board'
 import type { IssueRow, RepoRow } from './db'
 
 export function toBoardRepo(row: RepoRow): BoardRepo {
@@ -13,7 +13,7 @@ export function toBoardRepo(row: RepoRow): BoardRepo {
   }
 }
 
-export function toBoardIssue(row: IssueRow, timeline: string[]): BoardIssue {
+export function toBoardIssue(row: IssueRow, timeline: BoardTimelineItem[]): BoardIssue {
   return {
     repoId: row.repoId,
     number: row.number,
@@ -29,6 +29,7 @@ export function toBoardIssue(row: IssueRow, timeline: string[]): BoardIssue {
     updatedAt: row.githubUpdatedAt.toISOString(),
     closedAt: row.githubClosedAt ? row.githubClosedAt.toISOString() : null,
     highlightUntil: row.highlightUntil ? row.highlightUntil.toISOString() : null,
+    parentNumber: row.parentNumber ?? null,
     timeline,
   }
 }

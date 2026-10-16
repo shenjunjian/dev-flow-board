@@ -1,6 +1,8 @@
 import { and, eq } from 'drizzle-orm'
 import type { BoardIssue } from '#shared/utils/board'
-import { decideIssueColumn, isDoneIssueVisible, STATUS_LABEL_STAGES } from '#shared/utils/columns'
+import type { BoardTimelineItem } from '#shared/utils/board'
+import { decideIssueColumn, STATUS_LABEL_STAGES } from '#shared/utils/columns'
+import { parseParentNumber } from '#shared/utils/parent'
 import { buildTimelineSentences } from '#shared/utils/timeline'
 import { issues as issuesTable, issueEvents as issueEventsTable, repos as reposTable, useDb, type IssueRow, type RepoRow } from './db'
 import { GhError, ghJson } from './gh'
@@ -18,6 +20,8 @@ interface GhIssue {
   created_at: string
   updated_at: string
   closed_at: string | null
+  /** 子工单指向父工单的 API 地址；没有父子关系时缺省或为 null */
+  parent_issue_url?: string | null
   /** 带此字段说明是 PR，直接丢掉 */
   pull_request?: unknown
 }
@@ -92,6 +96,7 @@ function isIssueRowChanged(old: IssueRow, next: IssueRow): boolean {
     || old.statusLabel !== next.statusLabel
     || old.column !== next.column
     || old.assignee !== next.assignee
+    || (old.parentNumber ?? null) !== (next.parentNumber ?? null)
     || old.githubCreatedAt.getTime() !== next.githubCreatedAt.getTime()
     || old.githubUpdatedAt.getTime() !== next.githubUpdatedAt.getTime()
     || (old.githubClosedAt?.getTime() ?? null) !== (next.githubClosedAt?.getTime() ?? null)
@@ -243,6 +248,7 @@ async function syncRepoInner(repo: RepoRow, mode: SyncMode): Promise<SyncResult>
       statusLabel: decision.statusLabel,
       column: decision.column,
       assignee: issue.assignees[0]?.login ?? null,
+      parentNumber: parseParentNumber(issue.parent_issue_url, issue.body),
       githubCreatedAt: new Date(issue.created_at),
       githubUpdatedAt: new Date(issue.updated_at),
       githubClosedAt: issue.closed_at ? new Date(issue.closed_at) : null,
@@ -263,6 +269,7 @@ async function syncRepoInner(repo: RepoRow, mode: SyncMode): Promise<SyncResult>
             statusLabel: values.statusLabel,
             column: values.column,
             assignee: values.assignee,
+            parentNumber: values.parentNumber,
             githubCreatedAt: values.githubCreatedAt,
             githubUpdatedAt: values.githubUpdatedAt,
             githubClosedAt: values.githubClosedAt,
@@ -283,17 +290,19 @@ async function syncRepoInner(repo: RepoRow, mode: SyncMode): Promise<SyncResult>
       .get()
     if (!saved) return
 
-    return { row: saved, timelineMessages: timeline.map(t => t.message) }
+    return {
+      row: saved,
+      timeline: timeline.map(t => ({ at: new Date(t.occurredAt).toISOString(), message: t.message })),
+    }
   })
 
   for (const w of written) {
     if (!w) continue
-    // 完成列只展示近 2 天；更早的行留在库里但不推给页面
-    if (w.row.column === 'done' && !isDoneIssueVisible(w.row.githubClosedAt, now)) continue
     // 只推真正变动的行：新增或字段有变化（高亮从有值过期清空不算变动）
+    // 完成列的近 2 天裁剪在看板前端做，这里把全表变动都推给三个视图
     const old = oldByNumber.get(w.row.number)
     if (old && !isIssueRowChanged(old, w.row)) continue
-    upserts.push(toBoardIssue(w.row, w.timelineMessages))
+    upserts.push(toBoardIssue(w.row, w.timeline))
   }
 
   // 删除：today 模式只删这次看到的 closed-无-Merged；initial 模式整仓对账
@@ -330,26 +339,29 @@ export async function syncAllReposToday(): Promise<SyncResult[]> {
   return Promise.all(all.map(r => syncRepo(r.id, 'today')))
 }
 
-/** 供 board 接口取行内联时间线 */
+/** 供 board 接口取行内联时间线。返回库内全部工单，近 2 天裁剪只在看板完成列做。 */
 export function getIssuesWithTimeline(): BoardIssue[] {
   const { db } = useDb()
-  const now = Date.now()
   const rows = db.select().from(issuesTable).all()
 
   // 按仓库+编号分组，避免不同仓库同号串线
-  const eventsByIssue = new Map<string, string[]>()
+  const eventsByIssue = new Map<string, Array<{ at: number, id: number, message: string }>>()
   for (const ev of db.select().from(issueEventsTable).all()) {
     const key = `${ev.repoId}#${ev.number}`
     const list = eventsByIssue.get(key) ?? []
-    list.push(ev.message)
+    list.push({ at: ev.occurredAt.getTime(), id: ev.id, message: ev.message })
     eventsByIssue.set(key, list)
   }
 
   const result: BoardIssue[] = []
   for (const row of rows) {
-    // 完成列只返回近 2 天内的，更早的行留在库里
-    if (row.column === 'done' && !isDoneIssueVisible(row.githubClosedAt, now)) continue
-    result.push(toBoardIssue(row, eventsByIssue.get(`${row.repoId}#${row.number}`) ?? []))
+    const events = eventsByIssue.get(`${row.repoId}#${row.number}`) ?? []
+    events.sort((a, b) => a.at - b.at || a.id - b.id)
+    const timeline: BoardTimelineItem[] = events.map(ev => ({
+      at: new Date(ev.at).toISOString(),
+      message: ev.message,
+    }))
+    result.push(toBoardIssue(row, timeline))
   }
   return result
 }

@@ -27,6 +27,12 @@ export interface BoardRepo {
   refreshIntervalMs: number
 }
 
+/** 生命周期一句：at 是 occurredAt 的 ISO 时间，message 是带时间前缀的中文句子 */
+export interface BoardTimelineItem {
+  at: string
+  message: string
+}
+
 /** Issue（看板展示用），时间均为 ISO 字符串 */
 export interface BoardIssue {
   repoId: number
@@ -46,8 +52,10 @@ export interface BoardIssue {
   closedAt: string | null
   /** 列变化后的高亮截止时间 */
   highlightUntil: string | null
-  /** 生命周期句子，按时间顺序 */
-  timeline: string[]
+  /** 父工单编号；没有父子关系时为 null */
+  parentNumber: number | null
+  /** 生命周期句子，按 occurredAt 升序 */
+  timeline: BoardTimelineItem[]
 }
 
 /** GET /api/board 的响应 */

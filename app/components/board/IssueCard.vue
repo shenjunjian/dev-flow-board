@@ -105,10 +105,10 @@ const issueUrl = computed(() => `https://github.com/${props.repo.owner}/${props.
     </div>
     <template #content>
       <span
-        v-for="(line, i) in issue.timeline"
-        :key="i"
+        v-for="(entry, i) in issue.timeline"
+        :key="`${entry.at}-${i}`"
         class="block w-full whitespace-pre-line break-words text-left leading-4"
-      >{{ line }}</span>
+      >{{ entry.message }}</span>
     </template>
   </UTooltip>
 </template>

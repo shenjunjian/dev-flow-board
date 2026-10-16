@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { BOARD_COLUMNS, BOARD_COLUMN_LABELS, type BoardColumn, type BoardIssue, type BoardRepo } from '#shared/utils/board'
+import { BOARD_COLUMN_LABELS, type BoardColumn, type BoardIssue, type BoardRepo } from '#shared/utils/board'
+import { isDoneIssueVisible } from '#shared/utils/columns'
 
 const props = defineProps<{
   column: BoardColumn
@@ -8,7 +9,12 @@ const props = defineProps<{
   now: number
 }>()
 
-const columnIssues = computed(() => props.issues.filter(i => i.column === props.column))
+// 完成列只展示近 2 天。甘特图和研发分析不走这里，读的是未裁剪的全表。
+const columnIssues = computed(() => props.issues.filter((issue) => {
+  if (issue.column !== props.column) return false
+  if (props.column === 'done') return isDoneIssueVisible(issue.closedAt, props.now)
+  return true
+}))
 
 // 某列下没有任务的仓库块不渲染
 const blocks = computed(() => props.repos

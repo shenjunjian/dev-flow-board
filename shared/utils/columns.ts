@@ -111,7 +111,7 @@ function pickLatestLabeled(candidates: string[], latestLabeledAt?: Record<string
   return best
 }
 
-/** 完成列只展示 closedAt 在近 2 天内的任务（更早的行留在库里） */
+/** 看板完成列只展示 closedAt 在近 2 天内的任务（更早的行仍留在库里，供甘特图和研发分析使用） */
 export function isDoneIssueVisible(closedAt: string | number | Date | null | undefined, now: number): boolean {
   if (!closedAt) return false
   const t = new Date(closedAt).getTime()
