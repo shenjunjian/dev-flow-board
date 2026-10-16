@@ -1,2 +1,43 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+
+/* 根快照含顶栏，关掉它的动画，只让主区域淡入淡出 */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+.mode-stage {
+  view-transition-name: mode-stage;
+}
+
+::view-transition-group(mode-stage) {
+  animation: none;
+}
+
+::view-transition-old(mode-stage) {
+  animation: mode-fade-out 180ms ease both;
+}
+
+::view-transition-new(mode-stage) {
+  animation: mode-fade-in 180ms ease both;
+}
+
+@keyframes mode-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes mode-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(mode-stage),
+  ::view-transition-new(mode-stage) {
+    animation: none;
+  }
+}

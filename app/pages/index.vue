@@ -3,6 +3,7 @@ import { BOARD_COLUMNS, type BoardIssue } from '#shared/utils/board'
 
 const {
   repos,
+  issues,
   repoFilter,
   importanceFilter,
   filteredIssues,
@@ -15,6 +16,36 @@ const {
 } = useBoard()
 
 const managerOpen = ref(false)
+
+type PageMode = 'board' | 'gantt' | 'analysis'
+
+const mode = ref<PageMode>('board')
+
+const modeItems: { value: PageMode, label: string }[] = [
+  { value: 'board', label: '看板' },
+  { value: 'gantt', label: '甘特图' },
+  { value: 'analysis', label: '研发分析' },
+]
+
+// 研发分析不用顶栏仓库多选；重要性仍过滤。看板和甘特图走 filteredIssues。
+const analysisIssues = computed(() => issues.value.filter(issue =>
+  importanceFilter.value === 'all' || issue.importance === importanceFilter.value,
+))
+
+function setMode(next: PageMode) {
+  if (next === mode.value) return
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const start = document.startViewTransition?.bind(document)
+  if (!start || reduceMotion) {
+    mode.value = next
+    return
+  }
+  // 顶栏不在 mode-stage 上，过渡只淡入淡出主区域。回调要等 DOM 刷完再截新画面。
+  start(() => {
+    mode.value = next
+    return nextTick()
+  })
+}
 
 // -- 筛选选项 --
 const repoOptions = computed(() => repos.value.map(r => ({
@@ -152,6 +183,21 @@ onBeforeUnmount(() => {
         />
       </div>
 
+      <div class="flex items-center gap-0.5 rounded-md bg-elevated p-0.5" role="tablist" aria-label="视图">
+        <UButton
+          v-for="item in modeItems"
+          :key="item.value"
+          size="sm"
+          :color="mode === item.value ? 'primary' : 'neutral'"
+          :variant="mode === item.value ? 'solid' : 'ghost'"
+          role="tab"
+          :aria-selected="mode === item.value"
+          @click="setMode(item.value)"
+        >
+          {{ item.label }}
+        </UButton>
+      </div>
+
       <UButton
         icon="i-lucide-settings-2"
         color="neutral"
@@ -174,12 +220,12 @@ onBeforeUnmount(() => {
       </UButton>
     </header>
 
-    <!-- 四列看板 -->
-    <main class="flex min-h-0 flex-1 gap-2 p-2">
-      <div v-if="loading" class="flex flex-1 items-center justify-center">
+    <!-- 主区域：顶栏在过渡之外，三块视图读同一份工单 -->
+    <main class="mode-stage flex min-h-0 flex-1 flex-col overflow-hidden" :data-mode="mode">
+      <div v-if="loading" class="flex min-h-0 flex-1 items-center justify-center p-2">
         <USkeleton class="h-full w-full" />
       </div>
-      <template v-else>
+      <div v-else-if="mode === 'board'" class="flex min-h-0 flex-1 gap-2 p-2" data-view="board">
         <BoardColumn
           v-for="col in BOARD_COLUMNS"
           :key="col"
@@ -188,7 +234,23 @@ onBeforeUnmount(() => {
           :issues="filteredIssues"
           :now="now"
         />
-      </template>
+      </div>
+      <GanttView
+        v-else-if="mode === 'gantt'"
+        :repos="repos"
+        :issues="filteredIssues"
+        :now="now"
+      />
+      <div v-else class="flex min-h-0 flex-1 items-center justify-center p-6" data-view="analysis">
+        <div class="text-center">
+          <p class="text-sm font-semibold text-highlighted">
+            研发分析
+          </p>
+          <p class="mt-1 text-xs text-dimmed">
+            {{ analysisIssues.length }} 张工单
+          </p>
+        </div>
+      </div>
     </main>
 
     <!-- 阶段4 实现仓库管理弹窗 -->
