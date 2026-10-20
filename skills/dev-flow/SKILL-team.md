@@ -151,11 +151,11 @@ todos:
 在 AGENTS.md记录`术语`的格式如下：
 
 ```md
-# {Context Name}
+## {Context Name}
 
 {一两句话说明这个上下文是什么}
 
-## 术语表
+### 术语表
 
 **Order**:
 {一两句话的说明}
@@ -187,9 +187,9 @@ _Avoid_: Purchase, transaction
 在 AGENTS.md记录`架构决策记录`的格式如下：
 
 ```md
-# 0001-slug
+## 0001-slug
 
-## {Short title of the decision}
+### {Short title of the decision}
 
 {1-3 句话: what's the context, what did we decide, and why.}
 ```
