@@ -80,9 +80,9 @@ description: 用 gh 管理当前 GitHub 仓库的工单状态与 PR 合入。用
 
 不关闭工单，不删除 `blocked_by`。阻塞方合入并关闭后，GitHub 不再把它算作未关闭阻塞。
 
-### 合入 / 接受
+### 合入PR
 
-用户说合入或接受 PR。状态为 `DevDone` 或 `ReviewDone` 都可以合入（简单任务是不需要检视阶段）
+用户说合入PR时， 简单任务是不需要检视阶段。
 
 读取 PR 的 `closingIssuesReferences` 和 `mergeable`。每张关联工单都要有`ReviewDone` 或 `DevDone`，否则停止。`mergeable` 不是 `MERGEABLE` 时停止并说明原因。
 
