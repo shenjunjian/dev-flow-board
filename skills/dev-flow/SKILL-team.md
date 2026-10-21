@@ -54,8 +54,10 @@ description: 用 gh 管理当前 GitHub 仓库的工单状态与 PR 合入。用
 
 用户说实现、解决或修复，且已确定工单编号。工单上既没有 `WaitDev` 也没有 `ReviewErrors` 时停止。
 
-先读取正文和评论中的方案，把状态 label 换成 `Dev`，之后再去创建Git Worktree 进行任务开发，创建Worktree时，要从`dev` , `develop`, `master`,`main` 等分支上创建，如果主项目不在这些分支上，则提醒用户切换分支或指明从哪个分支创建worktree。
-在Worktree的新目录中进行代码开发或检视问题修改。
+先读取正文和评论中的方案，把状态 label 换成 `Dev`，之后再去开发。
+
+如果用户明确说明`Worktree开发` 或 `并行开发`,则创建Git Worktree 进行任务开发，创建Worktree时，要从`dev` , `develop`, `master`,`main` 等分支上创建，如果主项目不在这些分支上，则提醒用户切换分支或指明从哪个分支创建worktree。
+在Worktree的新目录中进行代码开发或检视问题修改。 否则直接在用户当前工作目录自动创建`<任务类型label>-<title>`的分支后进行开发。
 
 如果当前任务/工单引入新的`术语` 或 `架构决策记录`， 请务必记录在 `AGENTS.md`中。
 
@@ -92,6 +94,8 @@ description: 用 gh 管理当前 GitHub 仓库的工单状态与 PR 合入。用
 
 PR 正文的 `Closes` 会关闭工单。不要再执行 `gh issue close`。合并失败时不关闭工单，不卸下 `ReviewDone`。
 
+如果目前关联工单是一个子工单，则将其父工单的 `todos`中的当前项的`status`修改为`completed`，如果父工单的所有 `todos`都已完成，就将父工单的状态标签修改为 `Merged`， 父工单也全部结束，完成使命。
+
 ## 命令
 
 多行正文写入临时文件，用 `--body-file`。
@@ -111,7 +115,7 @@ PR 正文的 `Closes` 会关闭工单。不要再执行 `gh issue close`。合�
 - 建 PR：`gh pr create --base <default> --head <current> --title "..." --body-file <file>`
 - 合并：`gh pr merge <n> --squash`
 
-- 创建worktree: `git worktree add -b <任务类型label>-<title> ../agent-issue-<N> <base-branch>` , 从`<base-branch>` 分支创建一个新分支，比如 `feature-something`， 如果不指定`<base-branch>`, 则表示从主项目的当前分支创建。
+- 创建worktree: `git worktree add -b <任务类型label>-<title> ../<repoName>-issue<N> <base-branch>` , 从`<base-branch>` 分支创建一个新分支，比如 `feature-something`， 如果不指定`<base-branch>`, 则表示从主项目的当前分支创建。
 - 移除worktree: `git worktree remove ../agent-issue-<N>`
 
 ## 实施方案
