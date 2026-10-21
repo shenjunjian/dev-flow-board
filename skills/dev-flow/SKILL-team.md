@@ -83,7 +83,7 @@ description: 用 gh 管理当前 GitHub 仓库的工单状态与 PR 合入。用
 
 用户说检视或审核，且已确定工单编号。工单没有 `DevDone` 时停止。
 
-状态先换成 `Review`，再查看该工单关联 PR 的 diff。
+状态先换成 `Review`，再查看该工单关联 PR 的详情和修改内容。
 
 - 有问题：每个问题一条评论，然后换成 `ReviewErrors`。
 - 无问题：换成 `ReviewDone`。若是子工单，把父工单里对应 todo 的 `status` 改为 `completed`。父工单取 `parent` 字段；没有该字段时，从正文首行 `Part of #<parent>` 识别。修改含 `todos:` 且含该子任务 `id` 的那条评论。不用 `--edit-last`。
