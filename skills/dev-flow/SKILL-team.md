@@ -56,12 +56,11 @@ description: 用 gh 管理当前 GitHub 仓库的工单状态与 PR 合入。用
 
 ### 实现 / 修复 / 开发
 
-用户说实现、解决或修复，且已确定工单编号。工单上既没有 `WaitDev` 也没有 `ReviewErrors` 时停止。
+用户说实现、解决或修复，且已确定工单编号。工单上既没有 `WaitDev` 或 `ReviewErrors` 时停止。
 
 先读取正文和评论中的方案，把状态 label 换成 `Dev`，之后再去开发。
 
-如果用户明确说明`Worktree开发` 或 `并行开发`,则创建Git Worktree 进行任务开发，创建Worktree时，要从`dev` , `develop`, `master`,`main` 等分支上创建，如果主项目不在这些分支上，则提醒用户切换分支或指明从哪个分支创建worktree。
-在Worktree的新目录中进行代码开发或检视问题修改。 否则直接在用户当前工作目录自动创建`<任务类型label>-<title>`的分支后进行开发。
+如果用户明确说明`Worktree开发` 或 `并行开发`,则创建Git Worktree 进行任务开发，创建Worktree时，要从`dev` , `develop`, `master`,`main` 等分支上创建，如果主项目不在这些分支上，则提醒用户切换分支或指明从哪个分支创建worktree。在Worktree的新目录中进行代码开发或检视问题修改。 否则询问用户在当前分支开发，还是从哪个`base-branch`创建`<任务类型label>-<title>`的新分支后进行开发。
 
 如果当前任务/工单引入新的`术语` 或 `架构决策记录`， 请务必记录在 `AGENTS.md`中。同时将工单中的`Spec文档`部分要保存到源码的 `.specs`中去。
 
@@ -304,15 +303,14 @@ _Avoid_: Purchase, transaction
 
 使用两根轴评审对同一份代码diff内容进行检视。
 
-根据 issue编号 或 pr编号，获取提交的分支以及变动情况，参考：spec文档， issue信息，AGENTS.md记录术语和架构决策记录等内容。
+根据 issue编号 或 pr编号，获取提交的分支以及变动情况，同时参考：spec文档， issue信息，AGENTS.md记录术语和架构决策记录等内容。
 
 对 `HEAD` 与用户提交分支之间的 diff 做双轴评审：
 
 - **Standards**：代码是否遵循本仓库成文的编码标准？
+  - Standards的子代理检测坏味道，每种坏味道都写成*它是什么* → _怎么修_；拿它去比对 diff，坏味道有： Mysterious Name、Duplicated Code、Feature Envy、Data Clumps、Primitive Obsession、Repeated Switches、Shotgun Surgery、Divergent Change、Speculative Generality、Message Chains、Middle Man、Refused Bequest等。
+
 - **Spec**：代码是否忠实实现了源头的工单 / spec？
+  - Spec轴检测原始需求，spec文档的完成情况，是否缺少或做一半的需求，是否做了范围外的事情，以及是否有看起来实现了，但是实现方式不对应spec文档等。
 
 两根轴都作为**并行的 sub-agent** 运行，这样它们不会污染彼此的上下文，然后本 Skill 汇总它们各自的发现。每个子代理都传入 `diff结果 spec文档， issue信息`
-
-Standards的子代理检测坏味道，每种坏味道都写成*它是什么* → _怎么修_；拿它去比对 diff，坏味道有： Mysterious Name、Duplicated Code、Feature Envy、Data Clumps、Primitive Obsession、Repeated Switches、Shotgun Surgery、Divergent Change、Speculative Generality、Message Chains、Middle Man、Refused Bequest等。
-
-Spec轴检测原始需求，spec文档的完成情况，是否缺少或做一半的需求，是否做了范围外的事情，以及是否有看起来实现了，但是实现方式不对应spec文档等。
