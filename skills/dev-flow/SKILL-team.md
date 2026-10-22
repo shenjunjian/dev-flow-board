@@ -74,9 +74,9 @@ description: 用 gh 管理当前 GitHub 仓库的工单状态与 PR 合入。用
 
 用户说提交代码或开发完成，且已确定工单编号。工单没有 `Dev` 时停止。如果上下文没有Worktree信息，则默认从当前项目中进行提交，否则从Worktree进行提交。
 
-工作区有未提交改动才 commit。提交标题为`fix(..): ...`的模式，使用任务类型 feat/fix/refactor 做前缀。提交说明不包含 `Fixes`、`Closes`、`Resolves` 加 `Closes#编号`。没有未提交改动就跳过 commit。
+工作区有未提交改动才 commit。提交标题为`fix(..): ...`的模式，使用任务类型 feat/fix/refactor 做前缀。提交说明不包含 `Fixes`、`Closes`、`Resolves` 加 `Closes #编号`。没有未提交改动就跳过 commit。
 
-该工单已有开放 PR 则沿用。没有则先把当前分支推送到远端，再创建 PR：base 为仓库默认分支，head 为当前分支，正文包含 `Closes #<工单编号>`。
+该工单已有开放 PR 则沿用。没有则先把当前分支推送到远端，再创建 PR：base 为仓库默认分支，head 为当前分支，正文包含 `Closes #<工单编号>`， 请参考`pr 内容格式`的说明。
 
 没有可纳入 PR 的提交时停止，不要改 label。PR 就绪后，把状态换成 `DevDone`。
 
@@ -317,4 +317,122 @@ _Avoid_: Purchase, transaction
 - **Spec**：代码是否忠实实现了源头的工单 / spec？
   - Spec轴检测原始需求，spec文档的完成情况，是否缺少或做一半的需求，是否做了范围外的事情，以及是否有看起来实现了，但是实现方式不对应spec文档等。
 
-两根轴都作为**并行的 sub-agent** 运行，这样它们不会污染彼此的上下文，然后本 Skill 汇总它们各自的发现。每个子代理都传入 `diff结果 spec文档， issue信息`
+两根轴都作为**并行的 sub-agent** 运行，这样它们不会污染彼此的上下文，然后本 Skill 汇总它们各自的发现。每个子代理都传入 `diff内容 spec文档， issue信息`
+
+## pr 内容格式
+
+跳过所有开场白，文字保持简短。使用 `AGENTS.md` 里用户的术语用语。写 PR 正文时使用下面这个模板：
+
+```md
+## Summary
+
+<diagram, diff-sketch, or tree>
+
+## Issue
+
+Closes #<工单编号>
+```
+
+Summary 小节的编写参考下面：
+
+只输出能讲清关键要点的最小视图。
+
+- 用伪代码展示逻辑或算法：
+
+```text
+on(save)
+  if content is unchanged
+    return cached result
+  write new content
+  return fresh result
+```
+
+- 用调用树展示运行时控制流：
+
+```text
+submitForm
+  createSession
+    persistPrompt
+    launchAgent
+  navigateToSession
+```
+
+- 用组件树展示 UI（用户界面）结构，并包含其中要紧的状态和模块边界：
+
+```text
+<SessionPage> (apps/example/src/routes/session.tsx)
+  useSessionEvents()
+  <SessionToolbar>
+    <RunSkillButton> (packages/ui)
+```
+
+- 用浅层文件树展示文件职责或一次大范围重构：
+
+```text
+src/
+├── commands/       # parses user actions
+├── sessions/       # owns session state
+└── transport/      # sends API requests
+```
+
+- 用 Mermaid 展示组件交互、控制流或数据流：
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant Daemon
+    User->>UI: choose command
+    UI->>Daemon: send expanded prompt
+    Daemon-->>UI: stream result
+```
+
+- 当要点在于改了什么，而它周围的形态已经存在时，使用 `diff`。diff 的形状要贴合主题。
+
+组件变更：
+
+```diff
+ <SessionPage>
+   useSessionEvents()
+   <SessionToolbar>
++    <RunSkillButton />
+   <SessionTimeline>
++    <SkillResultCard />
+```
+
+文件布局变更：
+
+```diff
+ src/
+ ├── commands/
++│   └── show-me.ts       # expands the slash command
+ ├── sessions/
+-└── transport.ts
++└── transport/
++    ├── client.ts
++    └── stream.ts
+```
+
+调用树或调用栈变更：
+
+```diff
+ submitForm
+   createSession
+     persistPrompt
++    expandSkillMention
+     launchAgent
+-  navigateToSession
++  navigateToSession
++    subscribeToEvents
+```
+
+状态或控制流变更：
+
+```diff
+ on(save)
+-  write content
++  if content is unchanged
++    return cached result
++  write new content
++  invalidate cache
+```
